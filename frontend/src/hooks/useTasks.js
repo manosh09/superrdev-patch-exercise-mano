@@ -6,20 +6,36 @@ export function useTasks(query, status, page, pageSize) {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [debouncedQuery, setDebouncedQuery] = useState(query);
 
   useEffect(() => {
-    setLoading(true);
+    const timer = setTimeout(() => setDebouncedQuery(query), 300);
+    return () => clearTimeout(timer);
+  }, [query]);
 
-    fetchTasks({ query, status, page, pageSize })
+  useEffect(() => {
+    let ignore = false;
+    setLoading(true);
+    setError(null);
+
+    fetchTasks({ query: debouncedQuery, status, page, pageSize })
       .then((data) => {
+        if (ignore) return;
         setTasks(data.items);
         setTotal(data.total);
-        setLoading(false);
       })
       .catch((err) => {
+        if (ignore) return;
         setError(err.message);
+      })
+      .finally(() => {
+        if (!ignore) setLoading(false);
       });
-  }, [query, status, page, pageSize]);
+
+    return () => {
+      ignore = true;
+    };
+  }, [debouncedQuery, status, page, pageSize]);
 
   return { tasks, total, loading, error };
 }
